@@ -2,7 +2,12 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #111827;
+  --app-surface: transparent;
+  --app-sidebar: #f1f3f7;
+  --brand: #1b17ff;
+  --brand-soft: rgba(27, 23, 255, 0.08);
+  --brand-border: rgba(27, 23, 255, 0.22);
 }
 
 @theme inline {
@@ -12,15 +17,148 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@layer components {
+  .page-kicker {
+    @apply text-xs font-medium text-slate-500;
+  }
+
+  .page-title {
+    @apply text-[28px] font-semibold tracking-tight text-slate-950;
+  }
+
+  .page-subtitle {
+    @apply text-sm leading-6 text-slate-600;
+  }
+
+  .page-copy {
+    @apply text-sm leading-6 text-slate-600;
+  }
+
+  .section-title {
+    @apply text-base font-semibold text-slate-950;
+  }
+
+  .section-subtitle {
+    @apply text-sm leading-6 text-slate-600;
+  }
+
+  .section-copy {
+    @apply text-sm leading-6 text-slate-600;
+  }
+
+  .body-text {
+    @apply text-sm leading-6 text-slate-700;
+  }
+
+  .meta-label {
+    @apply text-[11px] font-medium text-slate-400;
+  }
+
+  .field-label {
+    @apply text-sm font-medium text-slate-700;
+  }
+
+  .metric-value {
+    @apply text-xl font-semibold text-slate-950;
+  }
+
+  .page-header {
+    @apply grid gap-6 md:grid-cols-[minmax(0,2fr)_220px] md:items-end;
+  }
+
+  .page-header-aside {
+    @apply border-t border-slate-100 pt-4 md:border-t-0 md:border-l md:border-slate-100 md:pl-6 md:pt-0;
+  }
+
+  .container-header {
+    @apply flex flex-col gap-1 border-b border-slate-100 pb-4;
+  }
+
+  .container-meta {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .container-content {
+    @apply pt-4;
+  }
+
+  .container-actions {
+    @apply flex flex-wrap items-center gap-3 pt-4;
+  }
+
+  .surface-tile {
+    @apply rounded-xl border border-slate-200 bg-white p-5 shadow-[0_12px_28px_-24px_rgba(15,23,42,0.18)];
+  }
+
+  .surface-tile-muted {
+    @apply rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-[0_10px_24px_-24px_rgba(15,23,42,0.14)];
+  }
+
+  .surface-tile-brand {
+    @apply rounded-xl border border-[rgba(27,23,255,0.24)] bg-white p-5 shadow-[0_18px_40px_-28px_rgba(27,23,255,0.14)];
+  }
+
+  .surface-tile-brand .meta-label {
+    color: rgba(27, 23, 255, 0.68);
+  }
+
+  .surface-tile-brand .metric-value,
+  .surface-tile-brand .section-copy,
+  .surface-tile-brand .page-copy {
+    color: var(--brand);
+  }
+
+  .button-primary {
+    @apply inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold text-white transition;
+    background: var(--brand);
+  }
+
+  .button-primary:hover {
+    background: #1713e6;
+  }
+
+  .button-secondary {
+    @apply inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50;
+  }
+
+  .brand-badge {
+    background: var(--brand-soft);
+    color: var(--brand);
+    border: 1px solid var(--brand-border);
+  }
+
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #ffffff;
+    --foreground: #111827;
+    --app-surface: transparent;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

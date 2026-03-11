@@ -28,7 +28,7 @@ export default function UserMenu({ user }: UserMenuProps) {
   return (
     <div className="relative" ref={ref}>
       <button
-        className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-200 focus:outline-none"
+        className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-[0_10px_30px_-24px_rgba(27,23,255,0.45)] focus:outline-none"
         onClick={() => setOpen((o) => !o)}
       >
         <span>{user.name}</span>
@@ -48,16 +48,16 @@ export default function UserMenu({ user }: UserMenuProps) {
         </svg>
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-48 rounded-md bg-white shadow-lg py-1 text-sm dark:bg-gray-700">
+        <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-[0_16px_40px_-32px_rgba(27,23,255,0.32)]">
           <a
             href="#"
-            className="block px-4 py-2 text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600"
+            className="block px-4 py-2 text-slate-700 hover:bg-slate-50"
           >
             Profil
           </a>
           <a
             href="#"
-            className="block px-4 py-2 text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600"
+            className="block px-4 py-2 text-slate-700 hover:bg-slate-50"
           >
             Logg ut
           </a>

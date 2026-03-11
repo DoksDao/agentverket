@@ -12,22 +12,21 @@ export default function AuthenticatedLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
-      {/* sidebar */}
+    <div className="flex h-screen overflow-hidden bg-[var(--app-surface)] text-slate-950">
       <Sidebar mobileOpen={sidebarOpen} setMobileOpen={setSidebarOpen} />
-      {/* overlay for mobile when sidebar is open */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-10 bg-black bg-opacity-30 md:hidden"
+          className="fixed inset-0 z-10 bg-[rgba(11,11,17,0.32)] md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* main area */}
-      <div className="flex flex-col flex-1 md:pl-64">
+      <div className="flex min-w-0 flex-1 flex-col">
         <TopNav onMenuClick={() => setSidebarOpen((o) => !o)} />
-        <main className="flex-1 overflow-auto p-6">
-          {children}
+        <main className="flex-1 overflow-auto px-3 py-3 sm:px-4 sm:py-4">
+          <div className="w-full min-w-0">
+            {children}
+          </div>
         </main>
       </div>
     </div>

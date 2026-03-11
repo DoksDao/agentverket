@@ -1,8 +1,8 @@
 export const mockWorkspace = {
-  name: "Acme Corp",
+  name: "Nordlys Vekst",
 };
 
 export const mockUser = {
-  name: "John Doe",
-  email: "john.doe@acme.com",
+  name: "Ingrid Nilsen",
+  email: "ingrid.nilsen@nordlysvekst.no",
 };

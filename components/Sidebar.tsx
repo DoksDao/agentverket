@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
@@ -11,10 +12,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "Oversikt", href: "/" },
+  { label: "Oversikt", href: "/dashboard" },
   { label: "AI-ansatte", href: "/ai-employees" },
   { label: "Oppgaver", href: "/tasks" },
   { label: "Aktivitet", href: "/activity" },
+  { label: "Maler", href: "/maler" },
   { label: "Integrasjoner", href: "/integrations" },
 ];
 
@@ -33,31 +35,40 @@ export default function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
 
   return (
     <nav
-      className={`fixed inset-y-0 left-0 z-20 w-64 transform bg-white shadow-md transition-transform duration-200 ease-in-out dark:bg-gray-800 md:relative md:translate-x-0 ${
+      className={`fixed inset-y-0 left-0 z-20 w-60 transform border-r border-slate-200 bg-[var(--app-sidebar)] text-slate-950 transition-transform duration-200 ease-in-out md:relative md:translate-x-0 ${
         mobileOpen ? "translate-x-0" : "-translate-x-full"
       }`}
+      style={{ backgroundColor: "#f1f3f7" }}
     >
       <div className="h-full overflow-auto">
-        <div className="px-6 py-4 text-lg font-semibold">
-          Agentverket
+        <div className="flex min-h-[72px] items-center border-b border-slate-200 px-4">
+          <div className="w-[220px]">
+            <Image
+              src="/agentverket-logo-transparent.png"
+              alt="Agentverket"
+              width={1306}
+              height={368}
+              className="h-12 w-auto object-contain"
+              priority
+            />
+          </div>
         </div>
-        <ul className="mt-4 space-y-1">
+        <ul className="mt-3 space-y-1 px-2">
           {navItems.map((item) => {
             const active =
-              pathname === item.href ||
-              (item.href !== "/" && pathname.startsWith(item.href));
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center px-4 py-2 text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                  className={`flex items-center rounded-xl px-3 py-2.5 text-sm transition ${
                     active
-                      ? "bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-white"
-                      : "text-gray-700 dark:text-gray-300"
+                      ? "bg-[rgba(27,23,255,0.12)] text-[var(--brand)]"
+                      : "text-slate-500 hover:bg-[rgba(27,23,255,0.08)] hover:text-[var(--brand)]"
                   }`}
                 >
                   {item.icon}
-                  <span className="ml-3">{item.label}</span>
+                  <span>{item.label}</span>
                 </Link>
               </li>
             );
