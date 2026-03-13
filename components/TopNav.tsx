@@ -1,13 +1,15 @@
 "use client";
 
-import { mockWorkspace, mockUser } from "../lib/mockData";
+import type { AppUser } from "../lib/auth-types";
 import UserMenu from "./UserMenu";
 
 interface TopNavProps {
   onMenuClick?: () => void;
+  workspaceName: string;
+  user: AppUser;
 }
 
-export default function TopNav({ onMenuClick }: TopNavProps) {
+export default function TopNav({ onMenuClick, workspaceName, user }: TopNavProps) {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/78">
       <div className="flex min-h-[72px] w-full items-center justify-between px-3 sm:px-4">
@@ -39,10 +41,10 @@ export default function TopNav({ onMenuClick }: TopNavProps) {
               Arbeidsrom
             </p>
             <span className="text-sm font-medium text-slate-950">
-              {mockWorkspace.name}
+              {workspaceName}
             </span>
           </div>
-          <UserMenu user={mockUser} />
+          <UserMenu user={user} />
         </div>
       </div>
     </header>

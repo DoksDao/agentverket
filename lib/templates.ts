@@ -1,5 +1,3 @@
-"use client";
-
 export type TemplateType = "Tilbud" | "E-post" | "Rapport";
 
 export interface StoredTemplate {
@@ -10,10 +8,7 @@ export interface StoredTemplate {
   updatedAt: string;
 }
 
-const STORAGE_KEY = "agentverket.templates";
-const STORAGE_EVENT = "agentverket-templates-updated";
-
-const defaultTemplates: StoredTemplate[] = [
+export const defaultTemplates: Array<Omit<StoredTemplate, "id"> & { id: string }> = [
   {
     id: "standard-tilbud",
     name: "Standard tilbud",
@@ -68,22 +63,6 @@ Anbefalinger:
   },
 ];
 
-function canUseStorage() {
-  return typeof window !== "undefined";
-}
-
-function createId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `template-${Date.now()}`;
-}
-
-function dispatchTemplatesUpdated() {
-  window.dispatchEvent(new Event(STORAGE_EVENT));
-}
-
 export function formatTemplateDate(dateString: string) {
   return new Intl.DateTimeFormat("nb-NO", {
     day: "2-digit",
@@ -92,88 +71,4 @@ export function formatTemplateDate(dateString: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(dateString));
-}
-
-export function readTemplates(): StoredTemplate[] {
-  if (!canUseStorage()) {
-    return defaultTemplates;
-  }
-
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-
-  if (!raw) {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultTemplates));
-    return defaultTemplates;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as StoredTemplate[];
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed;
-  } catch {
-    return [];
-  }
-}
-
-export function writeTemplates(templates: StoredTemplate[]) {
-  if (!canUseStorage()) {
-    return;
-  }
-
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
-  dispatchTemplatesUpdated();
-}
-
-export function createTemplate(input: Omit<StoredTemplate, "id" | "updatedAt">) {
-  const templates = readTemplates();
-  const nextTemplate: StoredTemplate = {
-    ...input,
-    id: createId(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  writeTemplates([nextTemplate, ...templates]);
-  return nextTemplate;
-}
-
-export function updateTemplate(
-  id: string,
-  input: Omit<StoredTemplate, "id" | "updatedAt">
-) {
-  const templates = readTemplates();
-  const updatedTemplates = templates.map((template) =>
-    template.id === id
-      ? { ...template, ...input, updatedAt: new Date().toISOString() }
-      : template
-  );
-
-  writeTemplates(updatedTemplates);
-  return updatedTemplates.find((template) => template.id === id) ?? null;
-}
-
-export function getTemplateById(id: string) {
-  return readTemplates().find((template) => template.id === id) ?? null;
-}
-
-export function subscribeToTemplateChanges(callback: () => void) {
-  if (!canUseStorage()) {
-    return () => undefined;
-  }
-
-  const handleStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY) {
-      callback();
-    }
-  };
-
-  window.addEventListener("storage", handleStorage);
-  window.addEventListener(STORAGE_EVENT, callback);
-
-  return () => {
-    window.removeEventListener("storage", handleStorage);
-    window.removeEventListener(STORAGE_EVENT, callback);
-  };
 }

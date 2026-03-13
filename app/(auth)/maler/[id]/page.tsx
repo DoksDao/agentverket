@@ -1,49 +1,22 @@
-"use client";
+import { notFound } from "next/navigation";
 
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { TemplateEditorForm } from "../../../../components/templates/TemplateEditorForm";
 import { Container } from "../../../../components/ui/container";
-import { TemplateForm } from "../../../../components/templates/TemplateForm";
-import { mockWorkspace } from "../../../../lib/mockData";
-import {
-  getTemplateById,
-  StoredTemplate,
-  subscribeToTemplateChanges,
-  updateTemplate,
-} from "../../../../lib/templates";
+import { requireSession } from "../../../../lib/auth";
+import { getTemplateById } from "../../../../lib/db";
+import { updateTemplateAction } from "../actions";
 
-export default function EditTemplatePage() {
-  const params = useParams<{ id: string }>();
-  const router = useRouter();
-  const [template, setTemplate] = useState<StoredTemplate | null | undefined>(undefined);
+export default async function EditTemplatePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const session = await requireSession();
+  const { id } = await params;
+  const template = getTemplateById(session.workspace.id, id);
 
-  useEffect(() => {
-    function loadTemplate() {
-      setTemplate(getTemplateById(params.id));
-    }
-
-    loadTemplate();
-
-    return subscribeToTemplateChanges(loadTemplate);
-  }, [params.id]);
-
-  if (template === undefined) {
-    return (
-      <Container>
-        <p className="section-copy">Laster mal...</p>
-      </Container>
-    );
-  }
-
-  if (template === null) {
-    return (
-      <Container className="border-dashed bg-slate-50 text-center">
-        <h1 className="page-title">Fant ikke malen</h1>
-        <p className="section-copy mt-2">
-          Malen finnes ikke i nettleserlagringen. Gå tilbake til oversikten og opprett en ny ved behov.
-        </p>
-      </Container>
-    );
+  if (!template) {
+    notFound();
   }
 
   return (
@@ -51,14 +24,10 @@ export default function EditTemplatePage() {
       <Container>
         <div className="page-header">
           <div className="container-header pb-0">
-            <p className="page-kicker">
-              Rediger mal i {mockWorkspace.name}
-            </p>
-            <h1 className="page-title">
-              Oppdater mal for AI-ansatte
-            </h1>
+            <p className="page-kicker">Rediger mal i {session.workspace.name}</p>
+            <h1 className="page-title">Oppdater mal for AI-ansatte</h1>
             <p className="page-subtitle max-w-2xl">
-              Endringer lagres i nettleseren og slår gjennom direkte i oppgaver som bruker malen.
+              Endringer lagres i databasen og slår gjennom direkte i oppgaver som bruker malen.
             </p>
           </div>
           <div className="page-header-aside">
@@ -70,19 +39,17 @@ export default function EditTemplatePage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <Container>
-          <TemplateForm
+          <TemplateEditorForm
             title="Rediger mal"
             description="Juster navn, type eller innhold og lagre for å oppdatere malen overalt i produktet."
             submitLabel="Lagre endringer"
             cancelHref="/maler"
+            formAction={updateTemplateAction}
+            templateId={template.id}
             initialValues={{
               name: template.name,
               type: template.type,
               body: template.body,
-            }}
-            onSubmit={(values) => {
-              updateTemplate(template.id, values);
-              router.push("/maler");
             }}
           />
         </Container>
@@ -95,9 +62,7 @@ export default function EditTemplatePage() {
             </p>
           </div>
           <div className="container-content">
-            <p className="meta-label">
-              Aktiv type
-            </p>
+            <p className="meta-label">Aktiv type</p>
             <p className="body-text mt-2">{template.type}</p>
           </div>
         </Container>

@@ -12,9 +12,8 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "Oversikt", href: "/dashboard" },
+  { label: "Oversikt", href: "/oversikt" },
   { label: "AI-ansatte", href: "/ai-employees" },
-  { label: "Oppgaver", href: "/tasks" },
   { label: "Aktivitet", href: "/activity" },
   { label: "Maler", href: "/maler" },
   { label: "Integrasjoner", href: "/integrations" },

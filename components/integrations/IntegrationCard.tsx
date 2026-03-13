@@ -1,10 +1,9 @@
-interface IntegrationCardProps {
+export interface IntegrationCardProps {
   name: string;
-  logoText: string;
-  logoStyle: string;
+  logoLetter: string;
+  logoColor: string;
   status: "Tilkoblet" | "Ikke tilkoblet";
-  description: string;
-  actionLabel: "Koble til" | "Administrer";
+  actionLabel: "Administrer";
   compact?: boolean;
 }
 
@@ -15,43 +14,43 @@ const statusStyles = {
 
 export function IntegrationCard({
   name,
-  logoText,
-  logoStyle,
+  logoLetter,
+  logoColor,
   status,
-  description,
   actionLabel,
   compact = false,
 }: IntegrationCardProps) {
   return (
-    <article className={`surface-tile flex h-full flex-col transition ${compact ? "p-4" : ""}`}>
-      <div className="container-header">
-        <div className="flex items-center gap-4">
-          <div
-            className={`flex items-center justify-center rounded-lg text-sm font-semibold ${compact ? "h-9 w-9" : "h-10 w-10"} ${logoStyle}`}
-            aria-hidden="true"
-          >
-            {logoText}
+    <article className={`surface-tile transition ${compact ? "p-4" : ""}`}>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="flex h-8 w-8 items-center justify-center" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 32 32" className="h-8 w-8">
+              <circle cx="16" cy="16" r="16" fill={logoColor} />
+              <text
+                x="16"
+                y="16"
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill="#ffffff"
+                fontSize="14"
+                fontWeight="700"
+                fontFamily="Arial, sans-serif"
+              >
+                {logoLetter}
+              </text>
+            </svg>
           </div>
-          <div>
-            <h2 className="section-title">
-              {name}
-            </h2>
+          <div className="min-w-0 sm:flex sm:items-center sm:gap-3">
+            <h2 className="section-title">{name}</h2>
             <span
-              className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[status]}`}
+              className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium sm:mt-0 ${statusStyles[status]}`}
             >
               {status}
             </span>
           </div>
         </div>
-        <p className="section-copy">{description}</p>
-      </div>
-
-      <div className="container-actions mt-auto">
-        <button
-          className={
-            actionLabel === "Administrer" ? "button-secondary" : "button-primary"
-          }
-        >
+        <button className="button-secondary">
           {actionLabel}
         </button>
       </div>

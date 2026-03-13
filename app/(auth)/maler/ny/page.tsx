@@ -1,10 +1,7 @@
-"use client";
-
-import { useRouter } from "next/navigation";
+import { TemplateEditorForm } from "../../../../components/templates/TemplateEditorForm";
 import { Container } from "../../../../components/ui/container";
-import { TemplateForm } from "../../../../components/templates/TemplateForm";
-import { mockWorkspace } from "../../../../lib/mockData";
-import { createTemplate } from "../../../../lib/templates";
+import { requireSession } from "../../../../lib/auth";
+import { createTemplateAction } from "../actions";
 
 const initialTemplateText = `Hei {{kunde}},
 
@@ -20,49 +17,40 @@ Neste steg:
 - {{neste_steg}}
 `;
 
-export default function NewTemplatePage() {
-  const router = useRouter();
+export default async function NewTemplatePage() {
+  const session = await requireSession();
 
   return (
     <div className="space-y-6">
       <Container>
         <div className="page-header">
           <div className="container-header pb-0">
-            <p className="page-kicker">
-              Ny mal i {mockWorkspace.name}
-            </p>
-            <h1 className="page-title">
-              Opprett en ny mal for AI-ansatte
-            </h1>
+            <p className="page-kicker">Ny mal i {session.workspace.name}</p>
+            <h1 className="page-title">Opprett en ny mal for AI-ansatte</h1>
             <p className="page-subtitle max-w-2xl">
               Definer navn, type og maltekst for nye leveranser. Malen lagres i
-              nettleseren og blir tilgjengelig i oppgaver med en gang.
+              databasen og blir tilgjengelig i oppgaver med en gang.
             </p>
           </div>
           <div className="page-header-aside">
             <p className="page-copy">Lagringsmodus</p>
-            <p className="metric-value mt-1">
-              Nettleserlagring
-            </p>
+            <p className="metric-value mt-1">Database</p>
           </div>
         </div>
       </Container>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <Container>
-          <TemplateForm
+          <TemplateEditorForm
             title="Maloppsett"
             description="Fyll inn grunninformasjon og skriv teksten som AI-ansatte skal bruke som utgangspunkt."
             submitLabel="Lagre"
             cancelHref="/maler"
+            formAction={createTemplateAction}
             initialValues={{
               name: "Ny kundemal",
               type: "Tilbud",
               body: initialTemplateText,
-            }}
-            onSubmit={(values) => {
-              createTemplate(values);
-              router.push("/maler");
             }}
           />
         </Container>
@@ -77,9 +65,7 @@ export default function NewTemplatePage() {
               </p>
             </div>
             <div className="container-content">
-              <p className="meta-label">
-                Eksempel på bruk
-              </p>
+              <p className="meta-label">Eksempel på bruk</p>
               <p className="body-text mt-3">
                 Tilbuds-AI kan fylle inn felter som <span className="font-medium text-slate-950">{"{{kunde}}"}</span>,
                 <span className="font-medium text-slate-950"> {"{{forslag}}"}</span> og

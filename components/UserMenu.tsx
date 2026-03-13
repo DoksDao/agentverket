@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { logoutAction } from "../app/login/actions";
 
 interface User {
   name: string;
@@ -55,12 +56,14 @@ export default function UserMenu({ user }: UserMenuProps) {
           >
             Profil
           </a>
-          <a
-            href="#"
-            className="block px-4 py-2 text-slate-700 hover:bg-slate-50"
-          >
-            Logg ut
-          </a>
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="block w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50"
+            >
+              Logg ut
+            </button>
+          </form>
         </div>
       )}
     </div>
