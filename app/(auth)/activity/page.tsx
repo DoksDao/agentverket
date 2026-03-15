@@ -14,7 +14,7 @@ function formatActivityTime(dateString: string) {
 
 export default async function ActivityPage() {
   const session = await requireSession();
-  const runs = listTaskRunsByWorkspace(session.workspace.id, 20);
+  const runs = await listTaskRunsByWorkspace(session.workspace.id, 20);
   const activityItems = runs.map((run) => ({
     taskName: run.taskName,
     aiEmployee: run.employeeName,

@@ -4,9 +4,8 @@ import { redirect } from "next/navigation";
 
 import {
   clearSession,
-  createSession,
   type AuthState,
-  validateCredentials,
+  signInWithPassword,
 } from "../../lib/auth";
 
 export async function loginAction(
@@ -22,15 +21,14 @@ export async function loginAction(
     };
   }
 
-  const authResult = validateCredentials(email, password);
+  const authResult = await signInWithPassword(email, password);
 
-  if (!authResult) {
+  if ("error" in authResult && authResult.error) {
     return {
-      error: "Ugyldig e-post eller passord. Prøv demo-brukeren som er oppgitt under skjemaet.",
+      error: authResult.error,
     };
   }
 
-  await createSession(authResult.user.id);
   redirect("/oversikt");
 }
 

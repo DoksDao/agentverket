@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { logoutAction } from "../app/login/actions";
+import { UserAvatar } from "./UserAvatar";
 
 interface User {
   name: string;
@@ -31,8 +32,9 @@ export default function UserMenu({ user }: UserMenuProps) {
       <button
         className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-[0_10px_30px_-24px_rgba(27,23,255,0.45)] focus:outline-none"
         onClick={() => setOpen((o) => !o)}
+        aria-label={`Brukermeny for ${user.name}`}
       >
-        <span>{user.name}</span>
+        <UserAvatar />
         <svg
           className="w-4 h-4"
           fill="none"

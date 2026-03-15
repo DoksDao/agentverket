@@ -2,29 +2,9 @@
 
 import { useMemo, useState } from "react";
 
+import type { AgentRecord } from "../../lib/db";
 import type { StoredTemplate } from "../../lib/templates";
 import { AIEmployeeCard } from "./AIEmployeeCard";
-
-const aiEmployees = [
-  {
-    id: "sales" as const,
-    name: "Salgs-AI",
-    description:
-      "Følger opp nye henvendelser, kvalifiserer potensielle kunder og foreslår neste salgsaktivitet.",
-  },
-  {
-    id: "offers" as const,
-    name: "Tilbuds-AI",
-    description:
-      "Bygger tilbudsutkast raskt og konsistent med utgangspunkt i kundebehov, prislister og tidligere leveranser.",
-  },
-  {
-    id: "admin" as const,
-    name: "Admin-AI",
-    description:
-      "Holder data oppdatert, organiserer dokumentasjon og automatiserer rutiner som ellers tar tid i hverdagen.",
-  },
-];
 
 function extractVariables(templateBody: string) {
   const matches = templateBody.matchAll(/{{\s*([^}]+?)\s*}}/g);
@@ -50,7 +30,25 @@ function renderTemplate(templateBody: string, values: Record<string, string>) {
   });
 }
 
-export function AIEmployeesFlow({ templates }: { templates: StoredTemplate[] }) {
+function getAvatarVariant(agentName: string) {
+  if (agentName === "Tilbuds-AI") {
+    return "offers" as const;
+  }
+
+  if (agentName === "Admin-AI") {
+    return "admin" as const;
+  }
+
+  return "sales" as const;
+}
+
+export function AIEmployeesFlow({
+  agents,
+  templates,
+}: {
+  agents: AgentRecord[];
+  templates: StoredTemplate[];
+}) {
   const [selectedEmployeeName, setSelectedEmployeeName] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
@@ -101,12 +99,12 @@ export function AIEmployeesFlow({ templates }: { templates: StoredTemplate[] }) 
   return (
     <div className="space-y-6">
       <div className="grid gap-6 xl:grid-cols-3">
-        {aiEmployees.map((employee) => (
+        {agents.map((employee) => (
           <AIEmployeeCard
-            key={employee.name}
+            key={employee.id}
             name={employee.name}
             description={employee.description}
-            avatar={employee.id}
+            avatar={getAvatarVariant(employee.name)}
             onUse={() => handleEmployeeUse(employee.name)}
           />
         ))}

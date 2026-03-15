@@ -4,8 +4,11 @@ import { listTaskRunsByWorkspace, listTemplatesByWorkspace } from "../../../lib/
 
 export default async function TasksPage() {
   const session = await requireSession();
-  const templates = listTemplatesByWorkspace(session.workspace.id);
-  const latestRun = listTaskRunsByWorkspace(session.workspace.id, 1)[0] ?? null;
+  const [templates, runs] = await Promise.all([
+    listTemplatesByWorkspace(session.workspace.id),
+    listTaskRunsByWorkspace(session.workspace.id, 1),
+  ]);
+  const latestRun = runs[0] ?? null;
 
   return (
     <TasksPageClient

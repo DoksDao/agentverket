@@ -26,7 +26,7 @@ export async function createTemplateAction(formData: FormData) {
   const session = await requireSession();
   const payload = parseTemplatePayload(formData);
 
-  createWorkspaceTemplate(session.workspace.id, payload);
+  await createWorkspaceTemplate(session.workspace.id, payload);
   redirect("/maler");
 }
 
@@ -39,7 +39,7 @@ export async function updateTemplateAction(formData: FormData) {
     throw new Error("Mangler templateId.");
   }
 
-  const updated = updateWorkspaceTemplate(session.workspace.id, templateId, payload);
+  const updated = await updateWorkspaceTemplate(session.workspace.id, templateId, payload);
 
   if (!updated) {
     throw new Error("Fant ikke malen som skulle oppdateres.");

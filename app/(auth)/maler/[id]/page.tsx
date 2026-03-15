@@ -13,7 +13,7 @@ export default async function EditTemplatePage({
 }) {
   const session = await requireSession();
   const { id } = await params;
-  const template = getTemplateById(session.workspace.id, id);
+  const template = await getTemplateById(session.workspace.id, id);
 
   if (!template) {
     notFound();

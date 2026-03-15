@@ -17,7 +17,7 @@ export async function runTaskAction(input: {
     throw new Error("Fant ikke valgt AI-ansatt eller oppgave.");
   }
 
-  const template = getTemplateById(session.workspace.id, input.templateId);
+  const template = await getTemplateById(session.workspace.id, input.templateId);
 
   if (!template) {
     throw new Error("Fant ikke valgt mal.");
@@ -39,7 +39,7 @@ export async function runTaskAction(input: {
     .map((field) => `${field.label}: ${input.formValues[field.id] ?? ""}`)
     .join(" | ");
 
-  const created = createTaskRun(session.workspace.id, session.user.id, {
+  const created = await createTaskRun(session.workspace.id, {
     employeeId: taskMatch.employee.id,
     employeeName: taskMatch.employee.name,
     taskId: taskMatch.task.id,

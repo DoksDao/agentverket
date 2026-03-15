@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { LoginForm } from "../../components/auth/LoginForm";
-import { getDemoCredentials, getSession } from "../../lib/auth";
+import { getSession } from "../../lib/auth";
 
 export default async function LoginPage() {
   const session = await getSession();
@@ -9,8 +9,6 @@ export default async function LoginPage() {
   if (session) {
     redirect("/oversikt");
   }
-
-  const demoCredentials = getDemoCredentials();
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-4 py-10">
@@ -51,25 +49,12 @@ export default async function LoginPage() {
               <p className="page-kicker">Innlogging</p>
               <h2 className="page-title">Logg inn på Agentverket</h2>
               <p className="page-subtitle">
-                Bruk demo-brukeren under for å åpne arbeidsrommet og gå videre til oversikten.
+                Logg inn med brukeren din for å åpne arbeidsrommet og gå videre til oversikten.
               </p>
             </div>
 
             <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.22)]">
-              <LoginForm
-                defaultEmail={demoCredentials.email}
-                defaultPassword={demoCredentials.password}
-              />
-
-              <div className="mt-5 rounded-xl bg-slate-50 px-4 py-3">
-                <p className="meta-label">Demo-bruker</p>
-                <p className="mt-2 text-sm font-medium text-slate-900">
-                  {demoCredentials.email}
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  Passord: {demoCredentials.password}
-                </p>
-              </div>
+              <LoginForm defaultEmail="" defaultPassword="" />
             </div>
           </div>
         </section>

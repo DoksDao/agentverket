@@ -3,16 +3,18 @@ import Link from "next/link";
 import { AIEmployeeAvatar } from "../../../components/ai-employees/AIEmployeeCard";
 import { Container } from "../../../components/ui/container";
 import { requireSession } from "../../../lib/auth";
+import { getWorkspaceByUserId } from "../../../lib/db";
 
 export default async function DashboardPage() {
   const session = await requireSession();
+  const workspace = await getWorkspaceByUserId(session.user.id);
 
   return (
     <div className="space-y-6">
       <Container>
         <div className="container-header pb-0">
           <p className="page-kicker">Firma</p>
-          <h1 className="page-title">{session.workspace.name}</h1>
+          <h1 className="page-title">{workspace.name}</h1>
         </div>
       </Container>
 

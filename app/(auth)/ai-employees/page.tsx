@@ -1,11 +1,14 @@
 import { AIEmployeesFlow } from "../../../components/ai-employees/AIEmployeesFlow";
 import { Container } from "../../../components/ui/container";
 import { requireSession } from "../../../lib/auth";
-import { listTemplatesByWorkspace } from "../../../lib/db";
+import { listAgentsByWorkspace, listTemplatesByWorkspace } from "../../../lib/db";
 
 export default async function AIEmployeesPage() {
   const session = await requireSession();
-  const templates = listTemplatesByWorkspace(session.workspace.id);
+  const [agents, templates] = await Promise.all([
+    listAgentsByWorkspace(session.workspace.id),
+    listTemplatesByWorkspace(session.workspace.id),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -21,7 +24,7 @@ export default async function AIEmployeesPage() {
       </Container>
 
       <Container>
-        <AIEmployeesFlow templates={templates} />
+        <AIEmployeesFlow agents={agents} templates={templates} />
       </Container>
     </div>
   );

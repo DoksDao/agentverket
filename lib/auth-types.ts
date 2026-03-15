@@ -7,7 +7,6 @@ export interface AppUser {
 export interface AppWorkspace {
   id: string;
   name: string;
-  slug: string;
 }
 
 export interface AuthenticatedAppSession {

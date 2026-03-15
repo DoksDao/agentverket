@@ -1,447 +1,69 @@
 import "server-only";
 
-import Database from "better-sqlite3";
-import { randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
-
-import type { AppUser, AppWorkspace, AuthenticatedAppSession } from "./auth-types";
+import type { AuthenticatedAppSession } from "./auth-types";
+import { createSupabaseClient } from "./supabase";
 import type { StoredTemplate, TemplateType } from "./templates";
 import { defaultTemplates } from "./templates";
 
-const dataDirectory = path.join(process.cwd(), "data");
-const databasePath = path.join(dataDirectory, "agentverket.sqlite");
+const defaultAgents = [
+  {
+    name: "Salgs-AI",
+    description:
+      "Følger opp nye henvendelser, kvalifiserer potensielle kunder og foreslår neste salgsaktivitet.",
+  },
+  {
+    name: "Tilbuds-AI",
+    description:
+      "Bygger tilbudsutkast raskt og konsistent med utgangspunkt i kundebehov, prislister og tidligere leveranser.",
+  },
+  {
+    name: "Admin-AI",
+    description:
+      "Holder data oppdatert, organiserer dokumentasjon og automatiserer rutiner som ellers tar tid i hverdagen.",
+  },
+];
 
-const DEFAULT_LOGIN_EMAIL =
-  process.env.DEMO_LOGIN_EMAIL ?? "ingrid.nilsen@nordlysvekst.no";
-const DEFAULT_LOGIN_PASSWORD =
-  process.env.DEMO_LOGIN_PASSWORD ?? "Agentverket2026!";
-
-type SessionRow = {
-  sessionId: string;
-  token: string;
-  expiresAt: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  workspaceId: string;
-  workspaceName: string;
-  workspaceSlug: string;
+type WorkspaceRow = {
+  id: string;
+  name: string;
 };
 
 type UserRow = {
   id: string;
-  name: string;
   email: string;
-  passwordHash: string;
-  workspaceId: string;
-  workspaceName: string;
-  workspaceSlug: string;
+  workspace_id: string;
+};
+
+type AgentRow = {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string;
+  created_at: string;
 };
 
 type TemplateRow = {
   id: string;
+  workspace_id: string;
   name: string;
   type: TemplateType;
-  body: string;
-  updatedAt: string;
+  content: string;
+  created_at: string;
 };
 
-type TaskRunRow = {
+type ActivityRow = {
   id: string;
-  employeeId: string;
-  employeeName: string;
-  taskId: string;
-  taskName: string;
-  templateId: string;
-  templateName: string;
-  status: string;
-  summary: string;
-  inputPayload: string;
-  createdAt: string;
+  workspace_id: string;
+  agent_id: string;
+  template_id: string;
+  result: string;
+  created_at: string;
 };
 
-function ensureDataDirectory() {
-  fs.mkdirSync(dataDirectory, { recursive: true });
-}
-
-function hashPassword(password: string, salt = randomUUID()) {
-  const hash = scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
-}
-
-function verifyPassword(password: string, passwordHash: string) {
-  const [salt, storedHash] = passwordHash.split(":");
-
-  if (!salt || !storedHash) {
-    return false;
-  }
-
-  const candidateHash = scryptSync(password, salt, 64);
-  const storedBuffer = Buffer.from(storedHash, "hex");
-
-  if (candidateHash.length !== storedBuffer.length) {
-    return false;
-  }
-
-  return timingSafeEqual(candidateHash, storedBuffer);
-}
-
-function mapSession(row: SessionRow): AuthenticatedAppSession {
-  return {
-    sessionId: row.sessionId,
-    user: {
-      id: row.userId,
-      name: row.userName,
-      email: row.userEmail,
-    },
-    workspace: {
-      id: row.workspaceId,
-      name: row.workspaceName,
-      slug: row.workspaceSlug,
-    },
-  };
-}
-
-ensureDataDirectory();
-
-const database = new Database(databasePath);
-database.pragma("journal_mode = WAL");
-
-database.exec(`
-  CREATE TABLE IF NOT EXISTS workspaces (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
-    created_at TEXT NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    workspace_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY,
-    token TEXT NOT NULL UNIQUE,
-    user_id TEXT NOT NULL,
-    expires_at TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS templates (
-    id TEXT PRIMARY KEY,
-    workspace_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    type TEXT NOT NULL,
-    body TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS task_runs (
-    id TEXT PRIMARY KEY,
-    workspace_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    employee_id TEXT NOT NULL,
-    employee_name TEXT NOT NULL,
-    task_id TEXT NOT NULL,
-    task_name TEXT NOT NULL,
-    template_id TEXT NOT NULL,
-    template_name TEXT NOT NULL,
-    status TEXT NOT NULL,
-    summary TEXT NOT NULL,
-    input_payload TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
-  CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
-  CREATE INDEX IF NOT EXISTS idx_templates_workspace_updated ON templates(workspace_id, updated_at DESC);
-  CREATE INDEX IF NOT EXISTS idx_task_runs_workspace_created ON task_runs(workspace_id, created_at DESC);
-`);
-
-const workspaceId = "workspace_nordlys_vekst";
-const defaultUserId = "user_ingrid_nilsen";
-const now = new Date().toISOString();
-
-database
-  .prepare(
-    `
-      INSERT INTO workspaces (id, name, slug, created_at)
-      VALUES (@id, @name, @slug, @createdAt)
-      ON CONFLICT(id) DO UPDATE SET
-        name = excluded.name,
-        slug = excluded.slug
-    `,
-  )
-  .run({
-    id: workspaceId,
-    name: "Nordlys Vekst",
-    slug: "nordlys-vekst",
-    createdAt: now,
-  });
-
-database
-  .prepare(
-    `
-      INSERT INTO users (id, workspace_id, name, email, password_hash, created_at)
-      VALUES (@id, @workspaceId, @name, @email, @passwordHash, @createdAt)
-      ON CONFLICT(email) DO UPDATE SET
-        workspace_id = excluded.workspace_id,
-        name = excluded.name,
-        password_hash = excluded.password_hash
-    `,
-  )
-  .run({
-    id: defaultUserId,
-    workspaceId,
-    name: "Ingrid Nilsen",
-    email: DEFAULT_LOGIN_EMAIL.toLowerCase(),
-    passwordHash: hashPassword(DEFAULT_LOGIN_PASSWORD),
-    createdAt: now,
-  });
-
-const templateCount = database
-  .prepare("SELECT COUNT(*) as count FROM templates WHERE workspace_id = ?")
-  .get(workspaceId) as { count: number };
-
-if (templateCount.count === 0) {
-  const insertTemplate = database.prepare(
-    `
-      INSERT INTO templates (id, workspace_id, name, type, body, updated_at, created_at)
-      VALUES (@id, @workspaceId, @name, @type, @body, @updatedAt, @createdAt)
-    `,
-  );
-
-  const insertMany = database.transaction(() => {
-    for (const template of defaultTemplates) {
-      insertTemplate.run({
-        id: `${workspaceId}_${template.id}`,
-        workspaceId,
-        name: template.name,
-        type: template.type,
-        body: template.body,
-        updatedAt: template.updatedAt,
-        createdAt: template.updatedAt,
-      });
-    }
-  });
-
-  insertMany();
-}
-
-export function getDemoCredentials() {
-  return {
-    email: DEFAULT_LOGIN_EMAIL,
-    password: DEFAULT_LOGIN_PASSWORD,
-  };
-}
-
-export function findUserByEmail(email: string) {
-  const row = database
-    .prepare(
-      `
-        SELECT
-          users.id,
-          users.name,
-          users.email,
-          users.password_hash AS passwordHash,
-          workspaces.id AS workspaceId,
-          workspaces.name AS workspaceName,
-          workspaces.slug AS workspaceSlug
-        FROM users
-        INNER JOIN workspaces ON workspaces.id = users.workspace_id
-        WHERE lower(users.email) = lower(?)
-        LIMIT 1
-      `,
-    )
-    .get(email) as UserRow | undefined;
-
-  if (!row) {
-    return null;
-  }
-
-  return row;
-}
-
-export function authenticateUser(email: string, password: string) {
-  const user = findUserByEmail(email);
-
-  if (!user || !verifyPassword(password, user.passwordHash)) {
-    return null;
-  }
-
-  return {
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-    } satisfies AppUser,
-    workspace: {
-      id: user.workspaceId,
-      name: user.workspaceName,
-      slug: user.workspaceSlug,
-    } satisfies AppWorkspace,
-  };
-}
-
-export function createDatabaseSession(userId: string) {
-  const sessionId = randomUUID();
-  const token = randomUUID();
-  const createdAt = new Date();
-  const expiresAt = new Date(createdAt.getTime() + 1000 * 60 * 60 * 8);
-
-  database
-    .prepare(
-      `
-        INSERT INTO sessions (id, token, user_id, expires_at, created_at)
-        VALUES (?, ?, ?, ?, ?)
-      `,
-    )
-    .run(sessionId, token, userId, expiresAt.toISOString(), createdAt.toISOString());
-
-  return {
-    sessionId,
-    token,
-    expiresAt,
-  };
-}
-
-export function deleteDatabaseSession(token: string) {
-  database.prepare("DELETE FROM sessions WHERE token = ?").run(token);
-}
-
-export function deleteExpiredSessions() {
-  database
-    .prepare("DELETE FROM sessions WHERE datetime(expires_at) <= datetime(?)")
-    .run(new Date().toISOString());
-}
-
-export function findSessionByToken(token: string) {
-  deleteExpiredSessions();
-
-  const row = database
-    .prepare(
-      `
-        SELECT
-          sessions.id AS sessionId,
-          sessions.token AS token,
-          sessions.expires_at AS expiresAt,
-          users.id AS userId,
-          users.name AS userName,
-          users.email AS userEmail,
-          workspaces.id AS workspaceId,
-          workspaces.name AS workspaceName,
-          workspaces.slug AS workspaceSlug
-        FROM sessions
-        INNER JOIN users ON users.id = sessions.user_id
-        INNER JOIN workspaces ON workspaces.id = users.workspace_id
-        WHERE sessions.token = ?
-        LIMIT 1
-      `,
-    )
-    .get(token) as SessionRow | undefined;
-
-  if (!row) {
-    return null;
-  }
-
-  if (new Date(row.expiresAt).getTime() <= Date.now()) {
-    deleteDatabaseSession(token);
-    return null;
-  }
-
-  return mapSession(row);
-}
-
-export function listTemplatesByWorkspace(workspaceId: string): StoredTemplate[] {
-  return database
-    .prepare(
-      `
-        SELECT id, name, type, body, updated_at as updatedAt
-        FROM templates
-        WHERE workspace_id = ?
-        ORDER BY datetime(updated_at) DESC
-      `,
-    )
-    .all(workspaceId) as StoredTemplate[];
-}
-
-export function getTemplateById(workspaceId: string, templateId: string) {
-  const row = database
-    .prepare(
-      `
-        SELECT id, name, type, body, updated_at as updatedAt
-        FROM templates
-        WHERE workspace_id = ? AND id = ?
-        LIMIT 1
-      `,
-    )
-    .get(workspaceId, templateId) as TemplateRow | undefined;
-
-  return row ?? null;
-}
-
-export function createWorkspaceTemplate(
-  workspaceId: string,
-  input: {
-    name: string;
-    type: TemplateType;
-    body: string;
-  },
-) {
-  const id = randomUUID();
-  const timestamp = new Date().toISOString();
-
-  database
-    .prepare(
-      `
-        INSERT INTO templates (id, workspace_id, name, type, body, updated_at, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `,
-    )
-    .run(id, workspaceId, input.name, input.type, input.body, timestamp, timestamp);
-
-  return getTemplateById(workspaceId, id);
-}
-
-export function updateWorkspaceTemplate(
-  workspaceId: string,
-  templateId: string,
-  input: {
-    name: string;
-    type: TemplateType;
-    body: string;
-  },
-) {
-  const timestamp = new Date().toISOString();
-
-  const result = database
-    .prepare(
-      `
-        UPDATE templates
-        SET name = ?, type = ?, body = ?, updated_at = ?
-        WHERE workspace_id = ? AND id = ?
-      `,
-    )
-    .run(input.name, input.type, input.body, timestamp, workspaceId, templateId);
-
-  if (result.changes === 0) {
-    return null;
-  }
-
-  return getTemplateById(workspaceId, templateId);
+export interface AgentRecord {
+  id: string;
+  name: string;
+  description: string;
 }
 
 export interface TaskRunRecord {
@@ -458,131 +80,451 @@ export interface TaskRunRecord {
   createdAt: string;
 }
 
-export function createTaskRun(
-  workspaceId: string,
-  userId: string,
-  input: Omit<TaskRunRecord, "id" | "createdAt">,
-) {
-  const id = randomUUID();
-  const createdAt = new Date().toISOString();
+function getSupabaseOrThrow() {
+  const supabase = createSupabaseClient();
 
-  database
-    .prepare(
-      `
-        INSERT INTO task_runs (
-          id,
-          workspace_id,
-          user_id,
-          employee_id,
-          employee_name,
-          task_id,
-          task_name,
-          template_id,
-          template_name,
-          status,
-          summary,
-          input_payload,
-          created_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-    )
-    .run(
-      id,
-      workspaceId,
-      userId,
-      input.employeeId,
-      input.employeeName,
-      input.taskId,
-      input.taskName,
-      input.templateId,
-      input.templateName,
-      input.status,
-      input.summary,
-      JSON.stringify(input.inputs),
-      createdAt,
+  if (!supabase) {
+    throw new Error(
+      "Supabase er ikke konfigurert. Legg inn NEXT_PUBLIC_SUPABASE_URL og NEXT_PUBLIC_SUPABASE_ANON_KEY i .env.local.",
     );
+  }
 
-  return getTaskRunById(workspaceId, id);
+  return supabase;
 }
 
-export function getTaskRunById(workspaceId: string, runId: string) {
-  const row = database
-    .prepare(
-      `
-        SELECT
-          id,
-          employee_id as employeeId,
-          employee_name as employeeName,
-          task_id as taskId,
-          task_name as taskName,
-          template_id as templateId,
-          template_name as templateName,
-          status,
-          summary,
-          input_payload as inputPayload,
-          created_at as createdAt
-        FROM task_runs
-        WHERE workspace_id = ? AND id = ?
-        LIMIT 1
-      `,
-    )
-    .get(workspaceId, runId) as TaskRunRow | undefined;
+function deriveWorkspaceName(email: string, displayName?: string) {
+  if (displayName?.trim()) {
+    return displayName.trim();
+  }
 
-  if (!row) {
+  const domain = email.split("@")[1] ?? "";
+  const companyName = domain.split(".")[0] ?? "Arbeidsrom";
+
+  if (!companyName) {
+    return "Arbeidsrom";
+  }
+
+  return companyName
+    .split(/[-_.]/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+async function ensureDefaultAgents(workspaceId: string) {
+  const supabase = getSupabaseOrThrow();
+  const { data: existingAgents, error } = await supabase
+    .from("agents")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .limit(1);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (existingAgents && existingAgents.length > 0) {
+    return;
+  }
+
+  const { error: insertError } = await supabase.from("agents").insert(
+    defaultAgents.map((agent) => ({
+      workspace_id: workspaceId,
+      name: agent.name,
+      description: agent.description,
+    })),
+  );
+
+  if (insertError) {
+    throw new Error(insertError.message);
+  }
+}
+
+async function ensureDefaultTemplates(workspaceId: string) {
+  const supabase = getSupabaseOrThrow();
+  const { data: existingTemplates, error } = await supabase
+    .from("templates")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .limit(1);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (existingTemplates && existingTemplates.length > 0) {
+    return;
+  }
+
+  const { error: insertError } = await supabase.from("templates").insert(
+    defaultTemplates.map((template) => ({
+      workspace_id: workspaceId,
+      name: template.name,
+      type: template.type,
+      content: template.body,
+    })),
+  );
+
+  if (insertError) {
+    throw new Error(insertError.message);
+  }
+}
+
+export async function ensureWorkspaceForUserEmail(email: string, displayName?: string) {
+  const supabase = getSupabaseOrThrow();
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const { data: existingUser, error: userLookupError } = await supabase
+    .from("users")
+    .select("id, email, workspace_id")
+    .eq("email", normalizedEmail)
+    .maybeSingle<UserRow>();
+
+  if (userLookupError) {
+    throw new Error(userLookupError.message);
+  }
+
+  if (existingUser) {
+    await ensureDefaultAgents(existingUser.workspace_id);
+    await ensureDefaultTemplates(existingUser.workspace_id);
+    return existingUser;
+  }
+
+  const { data: workspace, error: workspaceError } = await supabase
+    .from("workspaces")
+    .insert({
+      name: deriveWorkspaceName(normalizedEmail, displayName),
+    })
+    .select("id, name")
+    .single<WorkspaceRow>();
+
+  if (workspaceError || !workspace) {
+    throw new Error(workspaceError?.message ?? "Kunne ikke opprette workspace.");
+  }
+
+  const { data: user, error: insertUserError } = await supabase
+    .from("users")
+    .insert({
+      email: normalizedEmail,
+      workspace_id: workspace.id,
+    })
+    .select("id, email, workspace_id")
+    .single<UserRow>();
+
+  if (insertUserError || !user) {
+    throw new Error(insertUserError?.message ?? "Kunne ikke opprette bruker.");
+  }
+
+  await ensureDefaultAgents(workspace.id);
+  await ensureDefaultTemplates(workspace.id);
+
+  return user;
+}
+
+export async function getWorkspaceSessionByEmail(
+  email: string,
+  displayName: string,
+): Promise<AuthenticatedAppSession> {
+  const supabase = getSupabaseOrThrow();
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const userRow = await ensureWorkspaceForUserEmail(normalizedEmail, displayName);
+
+  const { data: workspace, error } = await supabase
+    .from("workspaces")
+    .select("id, name")
+    .eq("id", userRow.workspace_id)
+    .single<WorkspaceRow>();
+
+  if (error || !workspace) {
+    throw new Error(error?.message ?? "Fant ikke workspace for brukeren.");
+  }
+
+  return {
+    sessionId: userRow.id,
+    user: {
+      id: userRow.id,
+      name: displayName,
+      email: normalizedEmail,
+    },
+    workspace: {
+      id: workspace.id,
+      name: workspace.name,
+    },
+  };
+}
+
+export async function getWorkspaceByUserId(userId: string) {
+  const supabase = getSupabaseOrThrow();
+  const { data: userRow, error: userError } = await supabase
+    .from("users")
+    .select("workspace_id")
+    .eq("id", userId)
+    .single<{ workspace_id: string }>();
+
+  if (userError || !userRow) {
+    throw new Error(userError?.message ?? "Fant ikke brukerens workspace_id.");
+  }
+
+  const { data: workspace, error: workspaceError } = await supabase
+    .from("workspaces")
+    .select("id, name")
+    .eq("id", userRow.workspace_id)
+    .single<WorkspaceRow>();
+
+  if (workspaceError || !workspace) {
+    throw new Error(workspaceError?.message ?? "Fant ikke workspace for brukeren.");
+  }
+
+  return workspace;
+}
+
+export async function listAgentsByWorkspace(workspaceId: string): Promise<AgentRecord[]> {
+  await ensureDefaultAgents(workspaceId);
+  const supabase = getSupabaseOrThrow();
+
+  const { data, error } = await supabase
+    .from("agents")
+    .select("id, name, description")
+    .eq("workspace_id", workspaceId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const seen = new Set<string>();
+
+  return ((data ?? []) as AgentRecord[]).filter((agent) => {
+    const key = agent.name.trim().toLowerCase();
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+export async function findAgentByName(workspaceId: string, name: string) {
+  await ensureDefaultAgents(workspaceId);
+  const supabase = getSupabaseOrThrow();
+
+  const { data, error } = await supabase
+    .from("agents")
+    .select("id, name, description")
+    .eq("workspace_id", workspaceId)
+    .eq("name", name)
+    .limit(1)
+    .maybeSingle<AgentRow>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data
+    ? {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+      }
+    : null;
+}
+
+export async function listTemplatesByWorkspace(workspaceId: string): Promise<StoredTemplate[]> {
+  await ensureDefaultTemplates(workspaceId);
+  const supabase = getSupabaseOrThrow();
+  const { data, error } = await supabase
+    .from("templates")
+    .select("id, workspace_id, name, type, content, created_at")
+    .eq("workspace_id", workspaceId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as TemplateRow[]).map((template) => ({
+    id: template.id,
+    name: template.name,
+    type: template.type,
+    body: template.content,
+    updatedAt: template.created_at,
+  }));
+}
+
+export async function getTemplateById(workspaceId: string, templateId: string) {
+  const supabase = getSupabaseOrThrow();
+  const { data, error } = await supabase
+    .from("templates")
+    .select("id, workspace_id, name, type, content, created_at")
+    .eq("workspace_id", workspaceId)
+    .eq("id", templateId)
+    .maybeSingle<TemplateRow>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
     return null;
   }
 
   return {
-    id: row.id,
-    employeeId: row.employeeId,
-    employeeName: row.employeeName,
-    taskId: row.taskId,
-    taskName: row.taskName,
-    templateId: row.templateId,
-    templateName: row.templateName,
-    status: row.status,
-    summary: row.summary,
-    inputs: JSON.parse(row.inputPayload) as Record<string, string>,
-    createdAt: row.createdAt,
+    id: data.id,
+    name: data.name,
+    type: data.type,
+    body: data.content,
+    updatedAt: data.created_at,
+  } satisfies StoredTemplate;
+}
+
+export async function createWorkspaceTemplate(
+  workspaceId: string,
+  input: {
+    name: string;
+    type: TemplateType;
+    body: string;
+  },
+) {
+  const supabase = getSupabaseOrThrow();
+  const { data, error } = await supabase
+    .from("templates")
+    .insert({
+      workspace_id: workspaceId,
+      name: input.name,
+      type: input.type,
+      content: input.body,
+    })
+    .select("id, workspace_id, name, type, content, created_at")
+    .single<TemplateRow>();
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "Kunne ikke lagre mal.");
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    type: data.type,
+    body: data.content,
+    updatedAt: data.created_at,
+  } satisfies StoredTemplate;
+}
+
+export async function updateWorkspaceTemplate(
+  workspaceId: string,
+  templateId: string,
+  input: {
+    name: string;
+    type: TemplateType;
+    body: string;
+  },
+) {
+  const supabase = getSupabaseOrThrow();
+  const { data, error } = await supabase
+    .from("templates")
+    .update({
+      name: input.name,
+      type: input.type,
+      content: input.body,
+    })
+    .eq("workspace_id", workspaceId)
+    .eq("id", templateId)
+    .select("id, workspace_id, name, type, content, created_at")
+    .maybeSingle<TemplateRow>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    type: data.type,
+    body: data.content,
+    updatedAt: data.created_at,
+  } satisfies StoredTemplate;
+}
+
+function parseActivityResult(result: string) {
+  try {
+    return JSON.parse(result) as Omit<TaskRunRecord, "id" | "createdAt">;
+  } catch {
+    return {
+      employeeId: "",
+      employeeName: "",
+      taskId: "",
+      taskName: "",
+      templateId: "",
+      templateName: "",
+      status: "Fullført",
+      summary: result,
+      inputs: {},
+    };
+  }
+}
+
+export async function createTaskRun(
+  workspaceId: string,
+  input: Omit<TaskRunRecord, "id" | "createdAt">,
+) {
+  const supabase = getSupabaseOrThrow();
+  const agent = await findAgentByName(workspaceId, input.employeeName);
+
+  if (!agent) {
+    throw new Error("Fant ikke agent i Supabase.");
+  }
+
+  const { data, error } = await supabase
+    .from("activity")
+    .insert({
+      workspace_id: workspaceId,
+      agent_id: agent.id,
+      template_id: input.templateId,
+      result: JSON.stringify(input),
+    })
+    .select("id, workspace_id, agent_id, template_id, result, created_at")
+    .single<ActivityRow>();
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "Kunne ikke lagre aktivitet.");
+  }
+
+  const parsed = parseActivityResult(data.result);
+
+  return {
+    id: data.id,
+    ...parsed,
+    createdAt: data.created_at,
   } satisfies TaskRunRecord;
 }
 
-export function listTaskRunsByWorkspace(workspaceId: string, limit = 20) {
-  const rows = database
-    .prepare(
-      `
-        SELECT
-          id,
-          employee_id as employeeId,
-          employee_name as employeeName,
-          task_id as taskId,
-          task_name as taskName,
-          template_id as templateId,
-          template_name as templateName,
-          status,
-          summary,
-          input_payload as inputPayload,
-          created_at as createdAt
-        FROM task_runs
-        WHERE workspace_id = ?
-        ORDER BY datetime(created_at) DESC
-        LIMIT ?
-      `,
-    )
-    .all(workspaceId, limit) as TaskRunRow[];
+export async function listTaskRunsByWorkspace(workspaceId: string, limit = 20) {
+  const supabase = getSupabaseOrThrow();
+  const { data, error } = await supabase
+    .from("activity")
+    .select("id, workspace_id, agent_id, template_id, result, created_at")
+    .eq("workspace_id", workspaceId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
 
-  return rows.map((row) => ({
-    id: row.id,
-    employeeId: row.employeeId,
-    employeeName: row.employeeName,
-    taskId: row.taskId,
-    taskName: row.taskName,
-    templateId: row.templateId,
-    templateName: row.templateName,
-    status: row.status,
-    summary: row.summary,
-    inputs: JSON.parse(row.inputPayload) as Record<string, string>,
-    createdAt: row.createdAt,
-  })) satisfies TaskRunRecord[];
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as ActivityRow[]).map((row) => {
+    const parsed = parseActivityResult(row.result);
+
+    return {
+      id: row.id,
+      ...parsed,
+      createdAt: row.created_at,
+    } satisfies TaskRunRecord;
+  });
 }

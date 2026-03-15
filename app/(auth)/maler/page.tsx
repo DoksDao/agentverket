@@ -6,7 +6,7 @@ import { listTemplatesByWorkspace } from "../../../lib/db";
 
 export default async function TemplatesPage() {
   const session = await requireSession();
-  const templates = listTemplatesByWorkspace(session.workspace.id);
+  const templates = await listTemplatesByWorkspace(session.workspace.id);
 
   return (
     <div className="space-y-6">
